@@ -26,4 +26,15 @@ interface ReelCountDao {
 
     @Query("SELECT * FROM reel_counts ORDER BY timestamp DESC")
     fun getAllCounts(): Flow<List<ReelCountEntity>>
+
+    @Query(
+        "SELECT COUNT(*) FROM reel_counts " +
+                "WHERE platform = :platform " +
+                "AND timestamp >= :startOfDayMillis AND timestamp < :endOfDayMillis"
+    )
+    fun getCountForDayAndPlatform(
+        startOfDayMillis: Long,
+        endOfDayMillis: Long,
+        platform: String
+    ): Flow<Int>
 }
