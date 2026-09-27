@@ -32,6 +32,12 @@ class ReelCountRepositoryImpl @Inject constructor(
     override fun getCountForDay(startOfDayMillis: Long, endOfDayMillis: Long): Flow<Int> =
         dao.getCountForDay(startOfDayMillis, endOfDayMillis)
 
+    override fun getCountForDayAndPlatform(
+        startOfDayMillis: Long,
+        endOfDayMillis: Long,
+        platform: String
+    ): Flow<Int> = dao.getCountForDayAndPlatform(startOfDayMillis, endOfDayMillis, platform)
+
     override fun getAllCounts(): Flow<List<ReelCount>> =
         dao.getAllCounts().map { entities ->
             entities.map { entity ->

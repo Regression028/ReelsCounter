@@ -2,6 +2,8 @@ package com.example.reelscounter.ui.Home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.reelscounter.domain.model.Platform
+import com.example.reelscounter.domain.usecase.GetTodayCountByPlatformUseCase
 import com.example.reelscounter.domain.usecase.GetTodayCountUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -10,19 +12,23 @@ import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 /**
- * Exposes today's reel/short count as a live-updating StateFlow, so
- * HomeScreen just collects it and displays a number — no database or
+ * Exposes today's counts as live-updating StateFlows — one combined
+ * total, and one each for Reels (Instagram) and Shorts (YouTube) — so
+ * HomeScreen just collects and displays them, with no database or
  * use-case knowledge needed in the Composable itself.
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    getTodayCountUseCase: GetTodayCountUseCase
+    getTodayCountUseCase: GetTodayCountUseCase,
+    getTodayCountByPlatformUseCase: GetTodayCountByPlatformUseCase
 ) : ViewModel() {
 
-    val todayCount: StateFlow<Int> = getTodayCountUseCase()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = 0
-        )
+    val totalCount: StateFlow<Int> = getTodayCountUseCase()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val reelsCount: StateFlow<Int> = getTodayCountByPlatformUseCase(Platform.INSTAGRAM)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val shortsCount: StateFlow<Int> = getTodayCountByPlatformUseCase(Platform.YOUTUBE)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 }
