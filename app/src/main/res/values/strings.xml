@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">ReelsCounter</string>
+    <string name="accessibility_service_label">Reels Counter</string>
+    <string name="accessibility_service_description">Detects when you scroll to a new Reel or Short so Reels Counter can track your count. This service only reads screen content in Instagram and YouTube — it does not collect or transmit personal data.</string>
+</resources>
