@@ -5,9 +5,11 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import android.text.TextUtils
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,10 +20,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,12 +35,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -45,13 +54,18 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.reelscounter.service.ReelDetectionService
+import com.example.reelscounter.ui.theme.PaperLight
 import com.example.reelscounter.ui.theme.ReelsAccent
 import com.example.reelscounter.ui.theme.ShortsAccent
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 /**
- * Home screen, styled as a personal ledger entry rather than a tech
- * dashboard: today's total as a big serif hero number, then Reels and
- * Shorts as separate line items with hairline dividers.
+ * Home screen: a donut ring showing today's Reels/Shorts split, two
+ * bold platform blocks with percentages, and a 7-day trend chart —
+ * built to feel like a real habit-tracking app, not a debug readout.
  */
 @Composable
 fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
@@ -63,10 +77,8 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
     val totalCount by viewModel.totalCount.collectAsStateWithLifecycle()
     val reelsCount by viewModel.reelsCount.collectAsStateWithLifecycle()
     val shortsCount by viewModel.shortsCount.collectAsStateWithLifecycle()
+    val weeklyCounts by viewModel.weeklyCounts.collectAsStateWithLifecycle()
 
-    // Re-check every time the user returns to this screen (e.g. after
-    // toggling the service in Settings and pressing back), since Android
-    // doesn't notify us when the toggle changes.
     val lifecycleOwner = LocalLifecycleOwner.current
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -78,48 +90,71 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    val todayLabel = remember {
+        SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date())
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp, vertical = 40.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 32.dp)
     ) {
         Text(
-            text = "Today",
-            style = MaterialTheme.typography.headlineSmall,
+            text = "Reels Counter",
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
             color = MaterialTheme.colorScheme.onBackground
         )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        AnimatedCount(
-            targetValue = totalCount,
-            style = MaterialTheme.typography.displayLarge,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
         Text(
-            text = "reels & shorts, combined",
+            text = todayLabel,
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.outline
         )
 
+        Spacer(modifier = Modifier.height(32.dp))
+
+        ProgressRing(
+            reelsCount = reelsCount,
+            shortsCount = shortsCount,
+            total = totalCount,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            PlatformBlock(
+                label = "Reels",
+                count = reelsCount,
+                total = totalCount,
+                background = ReelsAccent,
+                modifier = Modifier.weight(1f)
+            )
+            PlatformBlock(
+                label = "Shorts",
+                count = shortsCount,
+                total = totalCount,
+                background = ShortsAccent,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
         Spacer(modifier = Modifier.height(40.dp))
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
-        LedgerRow(
-            label = "Reels",
-            value = reelsCount,
-            accent = ReelsAccent
+        Text(
+            text = "This week",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onBackground
         )
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
-        LedgerRow(
-            label = "Shorts",
-            value = shortsCount,
-            accent = ShortsAccent
-        )
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(20.dp))
+
+        WeeklyChart(counts = weeklyCounts)
+
+        Spacer(modifier = Modifier.height(40.dp))
 
         Text(
             text = if (isEnabled) "Detection is active" else "Detection is off",
@@ -146,50 +181,201 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
 }
 
 /**
- * One line item in the ledger: a small colored dot marking the
- * platform, its label, and its count — right-aligned, like a figure in
- * an account book.
+ * A donut ring split proportionally between Reels and Shorts — the
+ * split itself is the information, not decoration. Today's total sits
+ * animated in the center.
  */
 @Composable
-private fun LedgerRow(label: String, value: Int, accent: Color) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 20.dp),
-        verticalAlignment = Alignment.CenterVertically
+private fun ProgressRing(
+    reelsCount: Int,
+    shortsCount: Int,
+    total: Int,
+    modifier: Modifier = Modifier
+) {
+    val combinedTotal = (reelsCount + shortsCount).coerceAtLeast(1)
+    val reelsFraction = if (reelsCount + shortsCount > 0) reelsCount / combinedTotal.toFloat() else 0f
+    val shortsFraction = if (reelsCount + shortsCount > 0) shortsCount / combinedTotal.toFloat() else 0f
+
+    val reelsSweep by animateFloatAsState(
+        targetValue = reelsFraction * 360f,
+        animationSpec = tween(700),
+        label = "reelsSweep"
+    )
+    val shortsSweep by animateFloatAsState(
+        targetValue = shortsFraction * 360f,
+        animationSpec = tween(700),
+        label = "shortsSweep"
+    )
+
+    Box(
+        modifier = modifier.size(200.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .clip(CircleShape)
-                .background(accent)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
+        Canvas(modifier = Modifier.size(200.dp)) {
+            val strokeWidth = 18.dp.toPx()
+            val diameter = size.minDimension - strokeWidth
+            val topLeft = Offset(strokeWidth / 2, strokeWidth / 2)
+            val arcSize = Size(diameter, diameter)
+
+            // Background track
+            drawArc(
+                color = Color(0x22000000),
+                startAngle = 0f,
+                sweepAngle = 360f,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
+
+            if (reelsSweep > 0f) {
+                drawArc(
+                    color = ReelsAccent,
+                    startAngle = -90f,
+                    sweepAngle = reelsSweep,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+            }
+            if (shortsSweep > 0f) {
+                drawArc(
+                    color = ShortsAccent,
+                    startAngle = -90f + reelsSweep,
+                    sweepAngle = shortsSweep,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+            }
+        }
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            AnimatedCount(
+                targetValue = total,
+                fontSize = 48.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "today",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.outline
+            )
+        }
+    }
+}
+
+/**
+ * A bold flat-color block for one platform — deliberately not a soft
+ * rounded card with a shadow. High-contrast text directly on the
+ * accent color, with the percentage of today's total as a second
+ * data point (not just decoration).
+ */
+@Composable
+private fun PlatformBlock(
+    label: String,
+    count: Int,
+    total: Int,
+    background: Color,
+    modifier: Modifier = Modifier
+) {
+    val percentage = if (total > 0) (count * 100 / total) else 0
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(background)
+            .padding(horizontal = 16.dp, vertical = 20.dp)
+    ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.weight(1f)
+            style = MaterialTheme.typography.bodyMedium,
+            color = PaperLight
         )
+        Spacer(modifier = Modifier.height(4.dp))
         AnimatedCount(
-            targetValue = value,
-            style = TextStyle(
-                fontFamily = FontFamily.Serif,
-                fontSize = 32.sp
-            ),
-            color = MaterialTheme.colorScheme.onBackground
+            targetValue = count,
+            fontSize = 32.sp,
+            color = PaperLight
+        )
+        Text(
+            text = "$percentage% of today",
+            style = MaterialTheme.typography.labelMedium,
+            color = PaperLight.copy(alpha = 0.8f)
         )
     }
 }
 
 /**
- * The one deliberate motion moment in this screen: numbers count up
- * smoothly from their previous value to the new one whenever they
- * change, instead of just snapping — this is what happens when a new
- * reel/short gets detected while the screen is open.
+ * Seven bars, oldest to newest (today last). Today's bar is
+ * highlighted in solid ink; the rest are a quiet muted tone — the
+ * point is to show the week's shape, not to compete with the ring.
  */
 @Composable
-private fun AnimatedCount(targetValue: Int, style: TextStyle, color: Color) {
+private fun WeeklyChart(counts: List<Int>) {
+    val maxCount = (counts.maxOrNull() ?: 0).coerceAtLeast(1)
+    val dayLetters = remember {
+        (6 downTo 0).map { daysAgo ->
+            val calendar = Calendar.getInstance()
+            calendar.add(Calendar.DAY_OF_MONTH, -daysAgo)
+            SimpleDateFormat("EEEEE", Locale.getDefault()).format(calendar.time)
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(100.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom
+    ) {
+        counts.forEachIndexed { index, count ->
+            val isToday = index == counts.lastIndex
+            val heightFraction = (count / maxCount.toFloat()).coerceIn(0f, 1f)
+            val animatedHeight by animateFloatAsState(
+                targetValue = (heightFraction * 72).coerceAtLeast(4f),
+                animationSpec = tween(600),
+                label = "barHeight"
+            )
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.width(28.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .height(animatedHeight.dp)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(
+                            if (isToday) {
+                                MaterialTheme.colorScheme.onBackground
+                            } else {
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                            }
+                        )
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = dayLetters.getOrElse(index) { "" },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isToday) {
+                        MaterialTheme.colorScheme.onBackground
+                    } else {
+                        MaterialTheme.colorScheme.outline
+                    },
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+/** Animates from the previous value to the new one whenever it changes. */
+@Composable
+private fun AnimatedCount(targetValue: Int, fontSize: androidx.compose.ui.unit.TextUnit, color: Color) {
     val animatedValue = remember { Animatable(targetValue.toFloat()) }
     LaunchedEffect(targetValue) {
         animatedValue.animateTo(
@@ -199,7 +385,10 @@ private fun AnimatedCount(targetValue: Int, style: TextStyle, color: Color) {
     }
     Text(
         text = animatedValue.value.toInt().toString(),
-        style = style,
+        style = androidx.compose.ui.text.TextStyle(
+            fontFamily = FontFamily.Serif,
+            fontSize = fontSize
+        ),
         color = color
     )
 }
