@@ -33,7 +33,9 @@ object DatabaseModule {
             context,
             ReelsCounterDatabase::class.java,
             "reels_counter.db"
-        ).build()
+        )
+            .addMigrations(ReelsCounterDatabase.MIGRATION_1_2)
+            .build()
     }
 
     @Provides

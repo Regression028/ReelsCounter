@@ -28,4 +28,14 @@ interface ReelCountRepository {
 
     /** All recorded events, most recent first — useful for Statistics later. */
     fun getAllCounts(): Flow<List<ReelCount>>
+
+    /**
+     * Live per-platform event counts for [startOfDayMillis, endOfDayMillis).
+     * A platform with zero events in the range is simply absent from the
+     * map (not present with 0), same as the underlying GROUP BY query.
+     */
+    fun getPlatformCounts(startOfDayMillis: Long, endOfDayMillis: Long): Flow<Map<String, Int>>
+
+    /** Deletes every recorded event. Used by Settings > Reset data. */
+    suspend fun deleteAllCounts()
 }

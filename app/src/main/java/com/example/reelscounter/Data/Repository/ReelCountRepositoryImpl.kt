@@ -48,4 +48,16 @@ class ReelCountRepositoryImpl @Inject constructor(
                 )
             }
         }
+    override fun getPlatformCounts(
+        startOfDayMillis: Long,
+        endOfDayMillis: Long
+    ): Flow<Map<String, Int>> =
+        dao.getPlatformCounts(startOfDayMillis, endOfDayMillis).map { rows ->
+            rows.associate { it.platform to it.count }
+        }
+
+    override suspend fun deleteAllCounts() {
+        dao.deleteAll()
+    }
 }
+

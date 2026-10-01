@@ -37,4 +37,21 @@ interface ReelCountDao {
         endOfDayMillis: Long,
         platform: String
     ): Flow<Int>
+
+    /**
+     * Every platform's count for one range in a single query, instead of
+     * one COUNT(*) per platform — this is what Today/Last-7-days use.
+     * The timestamp (and platform+timestamp) index keeps this fast as
+     * the table grows.
+     */
+    @Query(
+        "SELECT platform, COUNT(*) as count FROM reel_counts " +
+                "WHERE timestamp >= :startOfDayMillis AND timestamp < :endOfDayMillis " +
+                "GROUP BY platform"
+    )
+    fun getPlatformCounts(startOfDayMillis: Long, endOfDayMillis: Long): Flow<List<PlatformCountRow>>
+
+    /** Wipes every recorded event. Used by Settings > Reset data. */
+    @Query("DELETE FROM reel_counts")
+    suspend fun deleteAll()
 }
