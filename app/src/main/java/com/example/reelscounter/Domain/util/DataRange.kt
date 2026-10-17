@@ -2,6 +2,7 @@ package com.example.reelscounter.domain.util
 
 import com.example.reelscounter.domain.model.DayStats
 import com.example.reelscounter.domain.model.Platform
+import com.example.reelscounter.domain.model.TimeStats
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -35,5 +36,18 @@ internal fun Map<String, Int>.toDayStats(date: LocalDate): DayStats {
         total = total,
         instagramCount = instagram,
         youtubeCount = youtube
+    )
+}
+
+/** Same idea as [toDayStats], for a platform -> duration(ms) map. */
+internal fun Map<String, Long>.toTimeStats(date: LocalDate): TimeStats {
+    val instagram = this[Platform.INSTAGRAM] ?: 0L
+    val youtube = this[Platform.YOUTUBE] ?: 0L
+    val total = this.values.sum()
+    return TimeStats(
+        date = date,
+        totalMs = total,
+        instagramMs = instagram,
+        youtubeMs = youtube
     )
 }
